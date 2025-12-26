@@ -86,6 +86,16 @@ from .qc import (
     compute_maf_correlation,
 )
 
+# Experiment orchestration
+from .experiment import (
+    run_experiment,
+    load_config,
+    merge_config,
+    ensure_experiments_dir,
+    setup_experiment_dir,
+    validate_config,
+)
+
 __all__ = [
     # IO
     'ld_prune',
@@ -146,4 +156,11 @@ __all__ = [
     'AncestryQCResult',
     'run_ancestry_qc',
     'compute_maf_correlation',
+    # Experiment orchestration
+    'run_experiment',
+    'load_config',
+    'merge_config',
+    'ensure_experiments_dir',
+    'setup_experiment_dir',
+    'validate_config',
 ]

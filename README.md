@@ -60,6 +60,190 @@ pip install -e ".[dev]"
 
 ---
 
+## Running Experiments
+
+After installing PathWAS, you can run analyses using the `pathwas` command-line tool. All experiment results are stored in an `experiments/` directory, which is automatically created in your current working directory.
+
+### The experiments/ Directory
+
+Each run of PathWAS creates a dedicated subdirectory under `experiments/` containing:
+
+- **config.yaml** - The configuration used for the run
+- **experiment_metadata.json** - Metadata including timestamp and git commit
+- **expression_preprocessed.csv** - Preprocessed expression data (if saved)
+- **pas_matrix.csv** - Pathway activation scores matrix
+- **pas_weights.csv** - Per-gene weights (if activity-weighted method used)
+- **association_results.csv** - Association test results
+- **experiment_report.md** - Markdown report summarizing the run
+- **experiment_report.html** - HTML version of the report
+
+### Example 1: Config-Driven Run
+
+Create a YAML configuration file and run:
+
+```bash
+pathwas --config configs/ad_resilience_1kg.yaml
+```
+
+This creates a new experiment directory, e.g., `experiments/ad_resilience_1kg/`.
+
+**Example config file (`configs/ad_resilience_1kg.yaml`):**
+
+```yaml
+experiment:
+  name: ad_resilience_1kg
+  description: "AD resilience analysis with 1000 Genomes LD reference"
+  overwrite: false
+
+data:
+  expression: data/gtex_brain.csv
+  genotypes: data/genotypes.csv
+  covariates: data/covariates.csv
+
+pathways:
+  source: hallmark
+
+preprocessing:
+  normalization: CPM
+  log_transform: true
+  zscore_genes: true
+
+modeling:
+  model_type: ridge
+  model_params:
+    lambda: 0.1
+
+association:
+  ld_root: /path/to/ld_reference
+  ld_ancestry: EUR_1KG
+```
+
+### Example 2: Config with CLI Overrides
+
+Load a base config and override specific parameters:
+
+```bash
+pathwas \
+  --config configs/ad_resilience_base.yaml \
+  --model bayes_mixture \
+  --experiment-name ad_resilience_bayes_1kg \
+  --overwrite \
+  --note "CPM+log+zscore; bayes_mixture vs ridge with 1KG LD."
+```
+
+### Example 3: Argument-Only Run
+
+Run without a config file by specifying all parameters on the command line:
+
+```bash
+pathwas \
+  --expression data/expression.tsv \
+  --genotypes data/genotypes.bed \
+  --covariates data/covariates.tsv \
+  --pathways hallmark \
+  --model ridge \
+  --lambda 0.2 \
+  --experiment-name ridge_lambda_0_2 \
+  --note "Quick test of ridge model with lambda=0.2."
+```
+
+### Overwriting Behavior
+
+- If `--experiment-name` points to an existing directory and `--overwrite` is used, the old contents will be replaced.
+- Without `--overwrite`, PathWAS will raise an error to prevent accidental data loss.
+
+### CLI Reference
+
+```
+pathwas [OPTIONS]
+
+Options:
+  --config, -c PATH          Path to YAML or JSON configuration file
+  --experiment-name, -n NAME Name for the experiment subdirectory
+  --overwrite                Overwrite existing experiment directory
+  --note TEXT                Free-text description of the experiment
+
+Data inputs:
+  --expression, -e PATH      Path to gene expression matrix
+  --genotypes, -g PATH       Path to genotype data (PLINK/VCF/CSV)
+  --covariates PATH          Path to covariates file
+
+Pathway settings:
+  --pathways, -p SOURCE      Pathway database (kegg, reactome, hallmark, custom, etc.)
+  --pathways-file PATH       Custom gene sets JSON file
+
+Preprocessing:
+  --expr-normalization       Normalization method (CPM, TPM, none)
+  --expr-log-transform       Apply log2(x + 1) transformation
+  --expr-zscore-genes        Z-score normalize across samples
+
+Modeling:
+  --model, -m TYPE           Model type (ridge, bayes_mixture, elastic_net, lasso)
+  --lambda VALUE             Regularization parameter
+  --mixture-components N     Number of mixture components (for bayes_mixture)
+
+LD/Association:
+  --ld-root PATH             Root directory for LD reference panel
+  --ld-ancestry TAG          LD ancestry tag (e.g., EUR_1KG)
+
+Output:
+  --output-dir PATH          Base directory for experiments
+  --no-save-intermediate     Don't save intermediate files
+
+Verbosity:
+  -v, --verbose              Increase verbosity (-v for INFO, -vv for DEBUG)
+  -q, --quiet                Suppress non-error output
+  --version                  Show version and exit
+```
+
+---
+
+## Docker
+
+PathWAS provides a Docker image for reproducible analysis.
+
+### Building the Image
+
+```bash
+docker build -t pathwas:latest .
+```
+
+### Running with Docker
+
+Mount your project directory to `/project` inside the container:
+
+```bash
+docker run --rm \
+  -v /path/to/local/project:/project \
+  pathwas:latest \
+  --config /project/configs/ad_resilience_1kg.yaml
+```
+
+Or with argument-only mode:
+
+```bash
+docker run --rm \
+  -v $(pwd):/project \
+  pathwas:latest \
+  --expression /project/data/expression.csv \
+  --genotypes /project/data/genotypes.csv \
+  --pathways hallmark \
+  --experiment-name docker_test
+```
+
+### Singularity/Apptainer (HPC)
+
+For HPC environments, convert the Docker image:
+
+```bash
+singularity pull pathwas.sif docker://yourname/pathwas:latest
+
+singularity run --bind /path/to/data:/project pathwas.sif \
+  --config /project/configs/my_config.yaml
+```
+
+---
+
 ## Project Structure
 
 ```text
@@ -69,29 +253,35 @@ PathWAS/
 │   │   └── pas.py              # Activity-weighted, mean, median, sum methods
 │   ├── modeling/               # SNP → PAS modeling
 │   │   ├── base.py             # Abstract model interface
-│   │   └── ridge.py            # Ridge regression implementation
+│   │   ├── ridge.py            # Ridge regression implementation
+│   │   └── bayes_mixture.py    # Bayesian mixture model
 │   ├── association/            # Trait association & genetic correlation
 │   │   ├── pathway_test.py     # Pathway-TWAS tests
 │   │   ├── pathway_rg.py       # Genetic correlation with jackknife
 │   │   └── genetic_correlation.py  # LDSC integration
 │   ├── io/                     # Input/output utilities
 │   │   ├── harmonize.py        # GWAS/pathQTL harmonization
-│   │   ├── covariance.py       # VCF covariance computation
+│   │   ├── expression.py       # Expression preprocessing
+│   │   ├── gene_sets.py        # Gene set loading (GMT, JSON)
 │   │   └── data_prep.py        # Gene ID conversion, MSigDB loading
 │   ├── ld/                     # LD reference panel support
 │   │   └── reference.py        # External LD panel loading
 │   ├── qc/                     # Quality control
 │   │   └── ancestry_mismatch.py # Ancestry/LD mismatch detection
-│   ├── tests/                  # Unit tests
-│   └── cli.py                  # Command-line interface
-├── requirements.txt            # Python dependencies
+│   ├── experiment.py           # Experiment orchestration
+│   ├── cli.py                  # Command-line interface
+│   └── tests/                  # Unit tests
+├── experiments/                # Experiment output directory (auto-created)
+├── configs/                    # Example configuration files
+├── Dockerfile                  # Container definition
+├── requirements.txt            # Pinned Python dependencies
 ├── setup.py                    # Package configuration
 └── README.md
 ```
 
 ---
 
-## Example Usage
+## Example Usage (Python API)
 
 ### Step 1: Compute PAS
 
@@ -240,6 +430,7 @@ pytest pathwas/tests/ --cov=pathwas --cov-report=term-missing
 | Class | Description |
 |-------|-------------|
 | `RidgePathwayModel` | Ridge regression for SNP-to-PAS |
+| `BayesMixturePathwayModel` | Bayesian mixture model |
 | `ModelConfig` | Model hyperparameters |
 | `LDReference` | LD reference panel container |
 | `GeneticCorrelationResult` | rg, SE, Z, p-value result |

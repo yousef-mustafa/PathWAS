@@ -1,0 +1,61 @@
+# PathWAS Example Configuration File
+# Copy this file and modify for your analysis
+
+# Experiment settings
+experiment:
+  name: my_experiment  # Name for the experiment directory
+  description: "Example PathWAS experiment"
+  overwrite: false  # Set to true to overwrite existing experiment
+
+# Data inputs (paths relative to working directory)
+data:
+  expression: data/expression.csv  # Gene expression matrix (samples x genes)
+  genotypes: data/genotypes.csv    # Genotype data (CSV, PLINK, or VCF)
+  covariates: data/covariates.csv  # Optional covariates
+
+# Pathway settings
+pathways:
+  # Pathway database source:
+  # - hallmark: MSigDB Hallmark gene sets
+  # - kegg: KEGG pathways
+  # - reactome: Reactome pathways
+  # - wikipathways: WikiPathways
+  # - go, go_bp, go_mf, go_cc: Gene Ontology
+  # - custom: User-provided gene sets (requires 'file')
+  source: hallmark
+  # file: path/to/custom_genesets.json  # Required if source is 'custom'
+
+# Expression preprocessing
+preprocessing:
+  # Normalization method: CPM, TPM, or none
+  normalization: none
+  # Apply log2(x + 1) transformation
+  log_transform: true
+  # Z-score normalize genes across samples
+  zscore_genes: false
+
+# SNP-to-PAS modeling
+modeling:
+  # Model type: ridge, bayes_mixture, elastic_net, lasso
+  model_type: ridge
+  model_params:
+    # Regularization parameter (for ridge/lasso/elastic_net)
+    lambda: 0.1
+    # Number of mixture components (for bayes_mixture)
+    # mixture_components: 3
+    # Elastic net mixing parameter (for elastic_net)
+    # alpha: 0.5
+
+# LD reference and association settings
+association:
+  # Root directory for LD reference panel
+  ld_root: null  # e.g., /path/to/ld_reference
+  # Ancestry tag (e.g., EUR_1KG, AFR_1KG)
+  ld_ancestry: EUR_1KG
+
+# Output settings
+output:
+  # Base directory for experiments (default: experiments/)
+  base_dir: experiments
+  # Save intermediate files (preprocessed expression, etc.)
+  save_intermediate: true

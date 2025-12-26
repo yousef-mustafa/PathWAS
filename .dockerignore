@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+*.egg
+.eggs
+dist
+build
+.tox
+.pytest_cache
+.coverage
+htmlcov
+.mypy_cache
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Experiments and data (should be mounted at runtime)
+experiments/
+data/
+*.csv
+*.tsv
+*.bed
+*.bim
+*.fam
+*.vcf
+*.vcf.gz
+
+# Documentation builds
+docs/_build
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints
+
+# Environment
+.env
+.venv
+venv
+env

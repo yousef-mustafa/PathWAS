@@ -1,11 +1,25 @@
-numpy
-pandas
-scipy
-scikit-allel
-mygene
-gseapy
-astropy
+# PathWAS - Pinned Dependencies
+# Install with: pip install -r requirements.txt
 
-# Development dependencies
-pytest
-pytest-cov
+# Core scientific computing
+numpy==1.26.4
+pandas==2.2.0
+scipy==1.12.0
+
+# Genomics and bioinformatics
+scikit-allel==1.3.8
+
+# Gene ID conversion and gene set enrichment
+mygene==3.2.2
+gseapy==1.1.3
+
+# Configuration and reporting
+pyyaml==6.0.1
+markdown==3.5.2
+
+# Optional but recommended for robust correlation methods
+astropy==6.0.0
+
+# Development dependencies (uncomment if needed)
+# pytest==8.0.0
+# pytest-cov==4.1.0
