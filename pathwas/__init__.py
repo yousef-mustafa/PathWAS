@@ -41,9 +41,32 @@ from .modeling import (
     ModelConfig,
     PathwayModel,
     RidgePathwayModel,
+    BayesMixturePathwayModel,
+    BayesMixtureConfig,
     create_model,
     register_model,
     available_models,
+)
+
+# Expression preprocessing
+from .io.expression import (
+    normalize_library_size,
+    log_transform,
+    zscore_genes,
+    filter_low_expression,
+    filter_low_count_samples,
+    preprocess_expression,
+)
+
+# Gene set loading
+from .io.gene_sets import (
+    load_gene_sets,
+    load_gmt,
+    load_tabular_gene_sets,
+    save_gene_sets_gmt,
+    gene_sets_to_dataframe,
+    filter_gene_sets_by_size,
+    intersect_gene_sets_with_genes,
 )
 
 # LD reference support
@@ -92,9 +115,26 @@ __all__ = [
     'ModelConfig',
     'PathwayModel',
     'RidgePathwayModel',
+    'BayesMixturePathwayModel',
+    'BayesMixtureConfig',
     'create_model',
     'register_model',
     'available_models',
+    # Expression preprocessing
+    'normalize_library_size',
+    'log_transform',
+    'zscore_genes',
+    'filter_low_expression',
+    'filter_low_count_samples',
+    'preprocess_expression',
+    # Gene set loading
+    'load_gene_sets',
+    'load_gmt',
+    'load_tabular_gene_sets',
+    'save_gene_sets_gmt',
+    'gene_sets_to_dataframe',
+    'filter_gene_sets_by_size',
+    'intersect_gene_sets_with_genes',
     # LD
     'LDReference',
     'load_ld_reference',

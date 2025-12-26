@@ -15,10 +15,12 @@ from typing import Dict, Type
 
 from .base import ModelConfig, PathwayModel
 from .ridge import RidgePathwayModel
+from .bayes_mixture import BayesMixturePathwayModel, BayesMixtureConfig
 
 # Registry of available model implementations
 _MODEL_REGISTRY: Dict[str, Type[PathwayModel]] = {
     "ridge": RidgePathwayModel,
+    "bayes_mixture": BayesMixturePathwayModel,
 }
 
 
@@ -28,9 +30,11 @@ def create_model(model_name: str, **kwargs) -> PathwayModel:
     Parameters
     ----------
     model_name : str
-        Name of the model type. Currently supported: "ridge".
+        Name of the model type. Supported: "ridge", "bayes_mixture".
     **kwargs
-        Hyperparameters passed to ModelConfig (e.g., lambda_=0.1).
+        Hyperparameters passed to ModelConfig.
+        For ridge: lambda_=0.1
+        For bayes_mixture: extra_params={"tau_grid": [...], "max_iter": 100}
 
     Returns
     -------
@@ -95,6 +99,8 @@ __all__ = [
     "ModelConfig",
     "PathwayModel",
     "RidgePathwayModel",
+    "BayesMixturePathwayModel",
+    "BayesMixtureConfig",
     "create_model",
     "register_model",
     "available_models",
