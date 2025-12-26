@@ -192,6 +192,121 @@ For more information, see: https://github.com/yousef-mustafa/pathWAS
         help="LD ancestry tag (e.g., EUR_1KG, AFR_1KG; default: EUR_1KG)",
     )
 
+    # ----------------------------- PAS Analysis ------------------------------- #
+    pas_group = parser.add_argument_group("PAS differential analysis")
+    pas_group.add_argument(
+        "--group-labels",
+        type=str,
+        metavar="PATH",
+        help="Path to group labels file (CSV with sample IDs and group column)",
+    )
+    pas_group.add_argument(
+        "--group-column",
+        type=str,
+        default="group",
+        metavar="NAME",
+        help="Column name for group labels (default: group)",
+    )
+    pas_group.add_argument(
+        "--pas-test",
+        type=str,
+        choices=["ttest", "welch", "mann_whitney", "anova", "kruskal", "linear"],
+        default="ttest",
+        help="Statistical test for PAS differential analysis (default: ttest)",
+    )
+    pas_group.add_argument(
+        "--pas-alpha",
+        type=float,
+        default=0.05,
+        metavar="VALUE",
+        help="Significance threshold for PAS analysis (default: 0.05)",
+    )
+    pas_group.add_argument(
+        "--pas-correction",
+        type=str,
+        choices=["none", "bonferroni", "fdr_bh", "fdr_by"],
+        default="fdr_bh",
+        help="Multiple testing correction method (default: fdr_bh)",
+    )
+    pas_group.add_argument(
+        "--pas-adjust-covariates",
+        action="store_true",
+        help="Adjust PAS tests for covariates (requires --covariates)",
+    )
+
+    # ----------------------------- Visualization ------------------------------ #
+    viz_group = parser.add_argument_group("Visualization settings")
+    viz_group.add_argument(
+        "--no-viz",
+        action="store_true",
+        help="Disable visualization generation",
+    )
+    viz_group.add_argument(
+        "--heatmap-title",
+        type=str,
+        metavar="TEXT",
+        help="Title for PAS heatmap",
+    )
+    viz_group.add_argument(
+        "--heatmap-cluster-rows",
+        action="store_true",
+        default=True,
+        help="Cluster rows (pathways) in heatmap (default: True)",
+    )
+    viz_group.add_argument(
+        "--heatmap-no-cluster-rows",
+        action="store_true",
+        help="Do not cluster rows in heatmap",
+    )
+    viz_group.add_argument(
+        "--heatmap-cluster-cols",
+        action="store_true",
+        default=True,
+        help="Cluster columns (samples) in heatmap (default: True)",
+    )
+    viz_group.add_argument(
+        "--heatmap-no-cluster-cols",
+        action="store_true",
+        help="Do not cluster columns in heatmap",
+    )
+    viz_group.add_argument(
+        "--heatmap-cmap",
+        type=str,
+        default="RdBu_r",
+        metavar="NAME",
+        help="Colormap for heatmap (default: RdBu_r)",
+    )
+    viz_group.add_argument(
+        "--boxplot-title",
+        type=str,
+        metavar="TEXT",
+        help="Title for PAS boxplots",
+    )
+    viz_group.add_argument(
+        "--boxplot-top-n",
+        type=int,
+        default=10,
+        metavar="N",
+        help="Number of top pathways to show in boxplots (default: 10)",
+    )
+    viz_group.add_argument(
+        "--boxplot-palette",
+        type=str,
+        default="Set2",
+        metavar="NAME",
+        help="Color palette for boxplots (default: Set2)",
+    )
+    viz_group.add_argument(
+        "--boxplot-violin",
+        action="store_true",
+        help="Show violin plots instead of boxplots",
+    )
+    viz_group.add_argument(
+        "--boxplot-no-points",
+        action="store_true",
+        help="Do not overlay individual data points on boxplots",
+    )
+
     # ----------------------------- Output settings ---------------------------- #
     output_group = parser.add_argument_group("Output settings")
     output_group.add_argument(
@@ -244,7 +359,8 @@ def merge_cli_overrides(config: dict, args: argparse.Namespace) -> dict:
     """
     overrides: dict = {"experiment": {}, "data": {}, "pathways": {},
                        "preprocessing": {}, "modeling": {"model_params": {}},
-                       "association": {}, "output": {}}
+                       "association": {}, "pas_analysis": {},
+                       "visualization": {"heatmap": {}, "boxplot": {}}, "output": {}}
 
     # Experiment metadata
     if args.experiment_name is not None:
@@ -297,6 +413,43 @@ def merge_cli_overrides(config: dict, args: argparse.Namespace) -> dict:
         overrides["output"]["base_dir"] = args.output_dir
     if args.no_save_intermediate:
         overrides["output"]["save_intermediate"] = False
+
+    # PAS analysis
+    if getattr(args, "group_labels", None) is not None:
+        overrides["data"]["group_labels"] = args.group_labels
+        overrides["pas_analysis"]["enabled"] = True
+    if getattr(args, "group_column", None) is not None:
+        overrides["pas_analysis"]["group_column"] = args.group_column
+    if getattr(args, "pas_test", None) is not None:
+        overrides["pas_analysis"]["test_method"] = args.pas_test
+    if getattr(args, "pas_alpha", None) is not None:
+        overrides["pas_analysis"]["alpha"] = args.pas_alpha
+    if getattr(args, "pas_correction", None) is not None:
+        overrides["pas_analysis"]["correction"] = args.pas_correction
+    if getattr(args, "pas_adjust_covariates", False):
+        overrides["pas_analysis"]["adjust_covariates"] = True
+
+    # Visualization settings
+    if getattr(args, "no_viz", False):
+        overrides["visualization"]["enabled"] = False
+    if getattr(args, "heatmap_title", None) is not None:
+        overrides["visualization"]["heatmap"]["title"] = args.heatmap_title
+    if getattr(args, "heatmap_no_cluster_rows", False):
+        overrides["visualization"]["heatmap"]["cluster_rows"] = False
+    if getattr(args, "heatmap_no_cluster_cols", False):
+        overrides["visualization"]["heatmap"]["cluster_cols"] = False
+    if getattr(args, "heatmap_cmap", None) is not None:
+        overrides["visualization"]["heatmap"]["cmap"] = args.heatmap_cmap
+    if getattr(args, "boxplot_title", None) is not None:
+        overrides["visualization"]["boxplot"]["title"] = args.boxplot_title
+    if getattr(args, "boxplot_top_n", None) is not None:
+        overrides["visualization"]["boxplot"]["top_n"] = args.boxplot_top_n
+    if getattr(args, "boxplot_palette", None) is not None:
+        overrides["visualization"]["boxplot"]["palette"] = args.boxplot_palette
+    if getattr(args, "boxplot_violin", False):
+        overrides["visualization"]["boxplot"]["show_violin"] = True
+    if getattr(args, "boxplot_no_points", False):
+        overrides["visualization"]["boxplot"]["show_points"] = False
 
     # Clean up empty dicts
     def remove_empty(d: dict) -> dict:

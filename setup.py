@@ -23,9 +23,12 @@ setup(
     ],
     extras_require={
         'robust': ['astropy>=5.0,<7.0'],
+        'viz': ['matplotlib>=3.5.0,<4.0.0', 'seaborn>=0.12.0,<1.0.0'],
         'dev': ['pytest>=7.0.0', 'pytest-cov>=4.0.0'],
         'all': [
             'astropy>=5.0,<7.0',
+            'matplotlib>=3.5.0,<4.0.0',
+            'seaborn>=0.12.0,<1.0.0',
             'pytest>=7.0.0',
             'pytest-cov>=4.0.0',
         ],

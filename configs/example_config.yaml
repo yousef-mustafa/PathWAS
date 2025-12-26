@@ -12,6 +12,7 @@ data:
   expression: data/expression.csv  # Gene expression matrix (samples x genes)
   genotypes: data/genotypes.csv    # Genotype data (CSV, PLINK, or VCF)
   covariates: data/covariates.csv  # Optional covariates
+  group_labels: data/groups.csv    # Optional: group labels for PAS differential analysis
 
 # Pathway settings
 pathways:
@@ -52,6 +53,59 @@ association:
   ld_root: null  # e.g., /path/to/ld_reference
   # Ancestry tag (e.g., EUR_1KG, AFR_1KG)
   ld_ancestry: EUR_1KG
+
+# PAS differential analysis settings
+pas_analysis:
+  # Enable PAS differential analysis (requires group_labels in data)
+  enabled: false
+  # Statistical test method:
+  # - ttest: Student's t-test (2 groups)
+  # - welch: Welch's t-test (2 groups, unequal variance)
+  # - mann_whitney: Mann-Whitney U test (2 groups, non-parametric)
+  # - anova: One-way ANOVA (2+ groups)
+  # - kruskal: Kruskal-Wallis H test (2+ groups, non-parametric)
+  # - linear: Linear regression with optional covariates
+  test_method: ttest
+  # Significance threshold
+  alpha: 0.05
+  # Multiple testing correction: none, bonferroni, fdr_bh, fdr_by
+  correction: fdr_bh
+  # Adjust for covariates (requires covariates in data)
+  adjust_covariates: false
+  # Column name in group labels file
+  group_column: group
+
+# Visualization settings
+visualization:
+  enabled: true
+
+  # Heatmap settings
+  heatmap:
+    enabled: true
+    title: "PAS Heatmap"
+    cluster_rows: true      # Cluster pathways (rows)
+    cluster_cols: true      # Cluster samples (columns)
+    cluster_method: average # average, complete, single, ward
+    cmap: RdBu_r           # Colormap (RdBu_r, viridis, coolwarm, etc.)
+    show_row_labels: true
+    show_col_labels: false
+
+  # Boxplot settings
+  boxplot:
+    enabled: true
+    title: "PAS Distribution by Group"
+    show_points: true      # Overlay individual data points
+    show_violin: false     # Use violin plots instead
+    palette: Set2          # Color palette
+    top_n: 10              # Number of top pathways to show
+
+  # Volcano plot settings (requires pas_analysis.enabled)
+  volcano:
+    enabled: true
+    title: "PAS Differential Analysis"
+    alpha: 0.05            # Significance threshold line
+    effect_threshold: 0.5  # Effect size threshold lines
+    top_n_labels: 10       # Number of top pathways to label
 
 # Output settings
 output:

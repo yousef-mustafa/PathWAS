@@ -37,6 +37,23 @@ except ImportError:
 
 from .io.data_prep import convert_gene_ids, convert_gene_list, load_msigdb_library
 from .pas.pas import compute_pas
+from .pas.pas_test import (
+    TestMethod,
+    MultipleTestingCorrection,
+    PASTestConfig,
+    test_pas_difference,
+    test_pas_with_covariates,
+    summarize_test_results,
+)
+from .pas.pas_viz import (
+    HeatmapConfig,
+    BoxplotConfig,
+    ClusterMethod,
+    plot_pas_heatmap,
+    plot_pas_boxplot_multi,
+    plot_pas_volcano,
+    create_pas_report_figures,
+)
 from .association.pathway_test import aggregate_variants, association_test
 
 
@@ -53,6 +70,7 @@ DEFAULT_CONFIG = {
         "expression": None,
         "genotypes": None,
         "covariates": None,
+        "group_labels": None,  # Path to group labels file for PAS analysis
     },
     "pathways": {
         "source": "hallmark",
@@ -73,6 +91,42 @@ DEFAULT_CONFIG = {
     "association": {
         "ld_root": None,
         "ld_ancestry": "EUR_1KG",
+    },
+    "pas_analysis": {
+        "enabled": False,
+        "test_method": "ttest",  # ttest, welch, mann_whitney, anova, kruskal, linear
+        "alpha": 0.05,
+        "correction": "fdr_bh",  # none, bonferroni, fdr_bh, fdr_by
+        "adjust_covariates": False,
+        "group_column": "group",  # Column name in group labels file
+    },
+    "visualization": {
+        "enabled": True,
+        "heatmap": {
+            "enabled": True,
+            "title": "PAS Heatmap",
+            "cluster_rows": True,
+            "cluster_cols": True,
+            "cluster_method": "average",
+            "cmap": "RdBu_r",
+            "show_row_labels": True,
+            "show_col_labels": False,
+        },
+        "boxplot": {
+            "enabled": True,
+            "title": "PAS Distribution by Group",
+            "show_points": True,
+            "show_violin": False,
+            "palette": "Set2",
+            "top_n": 10,
+        },
+        "volcano": {
+            "enabled": True,
+            "title": "PAS Differential Analysis",
+            "alpha": 0.05,
+            "effect_threshold": 0.5,
+            "top_n_labels": 10,
+        },
     },
     "output": {
         "base_dir": DEFAULT_EXPERIMENTS_DIR,
@@ -810,6 +864,187 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
                         "std": float(pas_stds[pw]),
                     })
                 results["top_pathways"] = top_pathways
+
+            # PAS differential analysis (if group labels provided)
+            group_labels_path = full_config.get("data", {}).get("group_labels")
+            pas_analysis_config = full_config.get("pas_analysis", {})
+            group_labels = None
+
+            if group_labels_path and os.path.exists(group_labels_path):
+                logging.info("Loading group labels from %s", group_labels_path)
+                group_df = pd.read_csv(group_labels_path, index_col=0)
+                group_col = pas_analysis_config.get("group_column", "group")
+
+                if group_col in group_df.columns:
+                    group_labels = group_df[group_col]
+                elif len(group_df.columns) == 1:
+                    group_labels = group_df.iloc[:, 0]
+                else:
+                    logging.warning("Could not find group column '%s' in group labels file", group_col)
+
+            if group_labels is not None and pas_analysis_config.get("enabled", False):
+                logging.info("Running PAS differential analysis")
+
+                # Build test configuration
+                test_method_map = {
+                    "ttest": TestMethod.TTEST,
+                    "welch": TestMethod.WELCH,
+                    "mann_whitney": TestMethod.MANN_WHITNEY,
+                    "anova": TestMethod.ANOVA,
+                    "kruskal": TestMethod.KRUSKAL,
+                    "linear": TestMethod.LINEAR,
+                }
+                correction_map = {
+                    "none": MultipleTestingCorrection.NONE,
+                    "bonferroni": MultipleTestingCorrection.BONFERRONI,
+                    "fdr_bh": MultipleTestingCorrection.FDR_BH,
+                    "fdr_by": MultipleTestingCorrection.FDR_BY,
+                }
+
+                test_config = PASTestConfig(
+                    method=test_method_map.get(
+                        pas_analysis_config.get("test_method", "ttest").lower(),
+                        TestMethod.TTEST
+                    ),
+                    alpha=pas_analysis_config.get("alpha", 0.05),
+                    correction=correction_map.get(
+                        pas_analysis_config.get("correction", "fdr_bh").lower(),
+                        MultipleTestingCorrection.FDR_BH
+                    ),
+                )
+
+                # Load covariates if needed
+                cov_df = None
+                if pas_analysis_config.get("adjust_covariates", False):
+                    cov_path = full_config.get("data", {}).get("covariates")
+                    if cov_path and os.path.exists(cov_path):
+                        logging.info("Loading covariates for adjusted analysis")
+                        cov_df = pd.read_csv(cov_path, index_col=0)
+
+                # Run differential analysis
+                try:
+                    diff_results = test_pas_difference(
+                        pas_df,
+                        group_labels,
+                        config=test_config,
+                        covariates=cov_df,
+                    )
+
+                    # Save differential analysis results
+                    diff_path = exp_dir / "pas_differential_results.csv"
+                    diff_results.to_csv(diff_path, index=False)
+                    logging.info("Saved PAS differential results to %s", diff_path)
+
+                    # Update results
+                    n_sig = diff_results["significant"].sum() if "significant" in diff_results.columns else 0
+                    results["pas_analysis"] = {
+                        "num_tested": len(diff_results),
+                        "num_significant": int(n_sig),
+                        "method": test_config.method.value,
+                        "alpha": test_config.alpha,
+                        "correction": test_config.correction.value,
+                    }
+
+                    # Get top differential pathways
+                    if not diff_results.empty:
+                        top_diff = diff_results.nsmallest(10, "pvalue_adj")
+                        results["pas_analysis"]["top_differential"] = top_diff.to_dict("records")
+
+                    # Print summary
+                    logging.info(summarize_test_results(diff_results))
+
+                except Exception as e:
+                    logging.error("PAS differential analysis failed: %s", e)
+                    results["pas_analysis"] = {"error": str(e)}
+
+            # Visualization
+            viz_config = full_config.get("visualization", {})
+            if viz_config.get("enabled", True) and not pas_df.empty:
+                logging.info("Generating visualizations")
+                figures_dir = exp_dir / "figures"
+                figures_dir.mkdir(exist_ok=True)
+
+                try:
+                    # Heatmap
+                    heatmap_config = viz_config.get("heatmap", {})
+                    if heatmap_config.get("enabled", True):
+                        cluster_method_map = {
+                            "average": ClusterMethod.AVERAGE,
+                            "complete": ClusterMethod.COMPLETE,
+                            "single": ClusterMethod.SINGLE,
+                            "ward": ClusterMethod.WARD,
+                        }
+                        hm_cfg = HeatmapConfig(
+                            title=heatmap_config.get("title", "PAS Heatmap"),
+                            cluster_rows=heatmap_config.get("cluster_rows", True),
+                            cluster_cols=heatmap_config.get("cluster_cols", True),
+                            cluster_method=cluster_method_map.get(
+                                heatmap_config.get("cluster_method", "average").lower(),
+                                ClusterMethod.AVERAGE
+                            ),
+                            cmap=heatmap_config.get("cmap", "RdBu_r"),
+                            show_row_labels=heatmap_config.get("show_row_labels", True),
+                            show_col_labels=heatmap_config.get("show_col_labels", False),
+                        )
+                        plot_pas_heatmap(
+                            pas_df,
+                            config=hm_cfg,
+                            group_labels=group_labels,
+                            output_path=figures_dir / "pas_heatmap.png",
+                        )
+
+                    # Boxplots for top pathways
+                    boxplot_config = viz_config.get("boxplot", {})
+                    if boxplot_config.get("enabled", True) and group_labels is not None:
+                        top_n = boxplot_config.get("top_n", 10)
+
+                        # Get top pathways (from differential analysis or by variance)
+                        if "pas_analysis" in results and "top_differential" in results.get("pas_analysis", {}):
+                            top_pathways_list = [
+                                p["pathway"] for p in results["pas_analysis"]["top_differential"][:top_n]
+                            ]
+                        else:
+                            top_pathways_list = pas_df.var().nlargest(top_n).index.tolist()
+
+                        bp_cfg = BoxplotConfig(
+                            title=boxplot_config.get("title", "PAS Distribution by Group"),
+                            show_points=boxplot_config.get("show_points", True),
+                            show_violin=boxplot_config.get("show_violin", False),
+                            palette=boxplot_config.get("palette", "Set2"),
+                        )
+                        plot_pas_boxplot_multi(
+                            pas_df,
+                            group_labels,
+                            top_pathways_list,
+                            config=bp_cfg,
+                            output_path=figures_dir / "pas_boxplots.png",
+                        )
+
+                    # Volcano plot
+                    volcano_config = viz_config.get("volcano", {})
+                    if volcano_config.get("enabled", True) and "pas_analysis" in results:
+                        diff_path = exp_dir / "pas_differential_results.csv"
+                        if diff_path.exists():
+                            diff_results = pd.read_csv(diff_path)
+                            plot_pas_volcano(
+                                diff_results,
+                                title=volcano_config.get("title", "PAS Differential Analysis"),
+                                alpha=volcano_config.get("alpha", 0.05),
+                                effect_threshold=volcano_config.get("effect_threshold", 0.5),
+                                top_n_labels=volcano_config.get("top_n_labels", 10),
+                                output_path=figures_dir / "pas_volcano.png",
+                            )
+
+                    results["figures"] = {
+                        "directory": str(figures_dir),
+                        "generated": list(figures_dir.glob("*.png")),
+                    }
+                    logging.info("Saved visualizations to %s", figures_dir)
+
+                except ImportError as e:
+                    logging.warning("Visualization dependencies not available: %s", e)
+                except Exception as e:
+                    logging.error("Visualization failed: %s", e)
 
             # Genotype-based association (if genotypes provided)
             geno_path = full_config.get("data", {}).get("genotypes")

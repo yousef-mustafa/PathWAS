@@ -21,6 +21,29 @@ from .io.harmonize import harmonize_weights_gwas, prepare_pathway_vectors, is_pa
 # PAS computation
 from .pas.pas import compute_pas, registry as pas_registry
 
+# PAS statistical testing
+from .pas.pas_test import (
+    TestMethod,
+    MultipleTestingCorrection,
+    PASTestConfig,
+    test_pas_difference,
+    test_pas_with_covariates,
+    pairwise_group_tests,
+    summarize_test_results,
+)
+
+# PAS visualization
+from .pas.pas_viz import (
+    HeatmapConfig,
+    BoxplotConfig,
+    plot_pas_heatmap,
+    plot_pas_boxplot,
+    plot_pas_boxplot_multi,
+    plot_pas_volcano,
+    plot_pathway_correlation,
+    create_pas_report_figures,
+)
+
 # Association testing
 from .association.pathway_test import (
     aggregate_variants,
@@ -110,6 +133,23 @@ __all__ = [
     # PAS
     'compute_pas',
     'pas_registry',
+    # PAS testing
+    'TestMethod',
+    'MultipleTestingCorrection',
+    'PASTestConfig',
+    'test_pas_difference',
+    'test_pas_with_covariates',
+    'pairwise_group_tests',
+    'summarize_test_results',
+    # PAS visualization
+    'HeatmapConfig',
+    'BoxplotConfig',
+    'plot_pas_heatmap',
+    'plot_pas_boxplot',
+    'plot_pas_boxplot_multi',
+    'plot_pas_volcano',
+    'plot_pathway_correlation',
+    'create_pas_report_figures',
     # Association
     'aggregate_variants',
     'association_test',
