@@ -12,6 +12,14 @@
 
 from .genetic_correlation import generate_pas_summary_stats, run_ldsc_rg
 from .pathway_test import aggregate_variants, association_test, test_pathway_twas
+from .pathway_rg import (
+    compute_ld_matrix,
+    compute_genetic_correlation,
+    compute_genetic_correlation_with_components,
+    jackknife_genetic_correlation,
+    compute_pathway_rg_for_all,
+    GeneticCorrelationResult,
+)
 
 __all__ = [
     "generate_pas_summary_stats",
@@ -19,4 +27,10 @@ __all__ = [
     "aggregate_variants",
     "association_test",
     "test_pathway_twas",
+    "compute_ld_matrix",
+    "compute_genetic_correlation",
+    "compute_genetic_correlation_with_components",
+    "jackknife_genetic_correlation",
+    "compute_pathway_rg_for_all",
+    "GeneticCorrelationResult",
 ]

@@ -58,15 +58,58 @@ def median_expression(expr: pd.DataFrame) -> pd.Series:
     return expr.median(axis=1)
 
 
-def _bicor(x: pd.Series, y: pd.Series) -> float:
-    """Placeholder biweight midcorrelation.
+def _bicor(x: pd.Series, y: pd.Series, min_valid: int = 5) -> float:
+    """Compute biweight midcorrelation between two vectors.
 
-    This implementation simply falls back to Pearson correlation and should be
-    replaced with a proper biweight midcorrelation implementation such as the
-    one provided by WGCNA's ``bicor``.
+    Uses astropy.stats.biweight_midcorrelation if available, otherwise falls
+    back to Pearson correlation.
+
+    Parameters
+    ----------
+    x : pd.Series
+        First vector.
+    y : pd.Series
+        Second vector.
+    min_valid : int
+        Minimum number of valid (non-NaN, non-inf) values required.
+
+    Returns
+    -------
+    float
+        Biweight midcorrelation coefficient, or NaN if insufficient valid data.
     """
+    # Convert to numpy and remove NaN/inf pairs
+    x_vals = np.asarray(x, dtype=np.float64)
+    y_vals = np.asarray(y, dtype=np.float64)
 
-    return x.corr(y, method="pearson")
+    # Find valid pairs (neither NaN nor inf)
+    valid_mask = (
+        np.isfinite(x_vals) &
+        np.isfinite(y_vals)
+    )
+
+    x_valid = x_vals[valid_mask]
+    y_valid = y_vals[valid_mask]
+
+    # Check minimum valid values
+    if len(x_valid) < min_valid:
+        logging.debug("Insufficient valid values for bicor: %d < %d", len(x_valid), min_valid)
+        return np.nan
+
+    # Try to use astropy's biweight_midcorrelation
+    try:
+        from astropy.stats import biweight_midcorrelation
+        try:
+            result = biweight_midcorrelation(x_valid, y_valid)
+            return float(result)
+        except (ValueError, ZeroDivisionError) as e:
+            # Degenerate input (e.g., constant values) - fall back to Pearson
+            logging.debug("Bicor failed on degenerate input, falling back to Pearson: %s", e)
+            return float(np.corrcoef(x_valid, y_valid)[0, 1])
+    except ImportError:
+        # astropy not available - fall back to Pearson
+        logging.debug("astropy not available, using Pearson correlation as fallback")
+        return float(np.corrcoef(x_valid, y_valid)[0, 1])
 
 
 def _corr(x: pd.Series, y: pd.Series, method: str) -> float:

@@ -19,7 +19,6 @@ from .io.vcf_processing import ld_prune
 from .io.covariance import load_vcf_as_matrix, compute_covariance
 from .pas.pas import compute_pas
 from .association.pathway_test import aggregate_variants, association_test
-from .logging.logging_util import configure_logging
 from .io.data_prep import (
     convert_gene_ids,
     convert_gene_list,
@@ -28,7 +27,7 @@ from .io.data_prep import (
 
 
 def main():
-    configure_logging()
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description="Pathway-level association analysis")
     subparsers = parser.add_subparsers(dest='command')
 
