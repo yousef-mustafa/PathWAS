@@ -5,3 +5,7 @@ scikit-allel
 mygene
 gseapy
 astropy
+
+# Development dependencies
+pytest
+pytest-cov
