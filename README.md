@@ -17,11 +17,12 @@ Traditional TWAS focuses on associating genetically predicted **gene expression*
 
 ## ⚙️ Features
 
-- ✅ PAS computation using mean, median, sum, or activity-weighted methods  
-- ✅ Support for KEGG, GO, MSigDB, and custom gene sets  
-- ✅ SNP-to-PAS model building using elastic net or other methods  
-- ✅ Individual-level or summary-based association tests (TWAS-style Z-scores)  
-- ✅ Genetic correlation estimation via LDSC  
+- ✅ PAS computation using mean, median, sum, or activity-weighted methods
+- ✅ Support for KEGG, GO, MSigDB, and custom gene sets
+- ✅ SNP-to-PAS model building using elastic net or other methods
+- ✅ Individual-level or summary-based association tests (TWAS-style Z-scores)
+- ✅ Genetic correlation estimation via LDSC
+- ✅ LD reference panel setup from 1000 Genomes data
 - ✅ Modular, testable architecture  
 
 ---
@@ -49,14 +50,72 @@ pathWAS/
 │   ├── pathways/           # Gene set loading (KEGG, GO, etc.)
 │   ├── model/              # SNP → PAS modeling
 │   ├── association/        # Trait association & genetic correlation
+│   ├── ld/                 # LD reference panel setup and management
 │   ├── io/                 # Input/output utilities
-│   └── cli.py              # Command-line interface (in development)
+│   └── cli.py              # Command-line interface
 ├── data/                   # Reference files (pathways, LD, annotations)
 ├── models/                 # Trained SNP→PAS models
 ├── scripts/                # Example analysis scripts
 ├── tests/                  # Unit tests
 ├── notebooks/              # Development notebooks
 └── examples/               # Example runs
+```
+
+---
+
+## 🔗 LD Reference Setup
+
+PathWAS requires LD (linkage disequilibrium) reference panels for SNP-based pathway analyses. The `setup-ld` command downloads and configures reference data from 1000 Genomes.
+
+### Supported Populations
+
+| Code | Population | Samples |
+|------|------------|---------|
+| EUR | European (CEU, TSI, FIN, GBR, IBS) | 503 |
+| AFR | African (YRI, LWK, GWD, MSL, ESN, ASW, ACB) | 661 |
+| EAS | East Asian (CHB, JPT, CHS, CDX, KHV) | 504 |
+
+### Quick Start
+
+```bash
+# List available ancestries
+pathwas setup-ld --list
+
+# Download EUR reference (chromosome 22 only - quick test)
+pathwas setup-ld --ancestry EUR --chromosomes 22 --output-dir ./ld_reference
+
+# Download full EUR reference (all autosomes)
+pathwas setup-ld --ancestry EUR --output-dir ./ld_reference
+```
+
+### Output Structure
+
+```
+ld_reference/
+└── EUR/
+    ├── snp_manifest.tsv      # SNP metadata (ID, chr, pos, alleles, MAF)
+    ├── block_definitions.bed  # LD block boundaries
+    └── blocks/
+        ├── block_0.npz       # LD matrix and SNP IDs per block
+        ├── block_1.npz
+        └── ...
+```
+
+### Python API
+
+```python
+from pathwas.ld import setup_ld_reference, SUPPORTED_ANCESTRIES
+
+# View supported populations
+print(SUPPORTED_ANCESTRIES)
+
+# Download and configure LD reference
+setup_ld_reference(
+    ancestry="EUR",
+    output_dir="./ld_reference",
+    chromosomes=[21, 22],  # Optional: specific chromosomes
+    maf_threshold=0.01,    # Minimum MAF filter
+)
 ```
 
 ## 🧪 Example Usage

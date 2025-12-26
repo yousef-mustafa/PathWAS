@@ -15,6 +15,8 @@ import logging
 
 import pandas as pd
 
+from pathlib import Path
+
 from .io.vcf_processing import ld_prune
 from .io.covariance import load_vcf_as_matrix, compute_covariance
 from .pas.pas import compute_pas
@@ -24,6 +26,11 @@ from .io.data_prep import (
     convert_gene_ids,
     convert_gene_list,
     load_msigdb_library,
+)
+from .ld.setup import (
+    SUPPORTED_ANCESTRIES,
+    list_ancestries,
+    setup_ld_reference,
 )
 
 
@@ -56,6 +63,45 @@ def main():
     test_p.add_argument('genotypes', help='Genotype matrix CSV (samples x variants)')
     test_p.add_argument('pathways', help='JSON mapping pathway name to genes')
     test_p.add_argument('--out', default='results.csv')
+
+    # LD reference setup subcommand
+    ld_p = subparsers.add_parser(
+        'setup-ld',
+        help='Download and set up LD reference panel from 1000 Genomes'
+    )
+    ld_p.add_argument(
+        '--ancestry',
+        choices=list(SUPPORTED_ANCESTRIES.keys()),
+        help='Population ancestry code (EUR, AFR, or EAS)'
+    )
+    ld_p.add_argument(
+        '--output-dir',
+        type=str,
+        default='./ld_reference',
+        help='Directory to save LD reference files (default: ./ld_reference)'
+    )
+    ld_p.add_argument(
+        '--chromosomes',
+        type=str,
+        help='Comma-separated list of chromosomes to process (default: 1-22)'
+    )
+    ld_p.add_argument(
+        '--maf-threshold',
+        type=float,
+        default=0.01,
+        help='Minimum minor allele frequency (default: 0.01)'
+    )
+    ld_p.add_argument(
+        '--keep-downloads',
+        action='store_true',
+        help='Keep intermediate PLINK files after processing'
+    )
+    ld_p.add_argument(
+        '--list',
+        action='store_true',
+        dest='list_ancestries',
+        help='List available ancestries and exit'
+    )
 
     args = parser.parse_args()
 
@@ -106,6 +152,32 @@ def main():
         res = association_test(pas, variants)
         res.to_csv(args.out, index=False)
         logging.info("Association results written to %s", args.out)
+    elif args.command == 'setup-ld':
+        if args.list_ancestries:
+            list_ancestries()
+        elif args.ancestry:
+            # Parse chromosomes if provided
+            chromosomes = None
+            if args.chromosomes:
+                try:
+                    chromosomes = [int(c.strip()) for c in args.chromosomes.split(',')]
+                except ValueError:
+                    parser.error("Chromosomes must be comma-separated integers")
+
+            success = setup_ld_reference(
+                ancestry=args.ancestry,
+                output_dir=Path(args.output_dir),
+                chromosomes=chromosomes,
+                maf_threshold=args.maf_threshold,
+                keep_downloads=args.keep_downloads,
+            )
+            if not success:
+                logging.error("LD reference setup failed")
+                exit(1)
+        else:
+            print("Error: --ancestry is required unless using --list")
+            print()
+            ld_p.print_help()
     else:
         parser.print_help()
 

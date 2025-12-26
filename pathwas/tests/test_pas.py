@@ -1,5 +1,5 @@
 import pandas as pd
-from pathwas.pas import compute_pas
+from pathwas.pas.pas import compute_pas
 
 
 def test_compute_pas_mean():
@@ -22,7 +22,7 @@ def test_compute_pas_activity_weighted():
     assert pas.loc['s2', 'pw1'] == 3.0
     assert pas.loc['s3', 'pw1'] == 4.5
 
-from pathwas.data_prep import convert_gene_ids
+from pathwas.io.data_prep import convert_gene_ids
 
 
 class DummyMG:
@@ -32,7 +32,7 @@ class DummyMG:
 
 def test_convert_gene_ids(monkeypatch):
     import types
-    import pathwas.data_prep as dp
+    import pathwas.io.data_prep as dp
 
     monkeypatch.setattr(dp, 'mygene', types.SimpleNamespace(MyGeneInfo=lambda: DummyMG()))
     expr = pd.DataFrame({'TP53': [1, 2], '1234': [3, 4]}, index=['s1', 's2'])

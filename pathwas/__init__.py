@@ -22,6 +22,7 @@ from .association.pathway_test import (
 from .logging.logging_util import configure_logging
 from .io.data_prep import convert_gene_ids, convert_gene_list, load_msigdb_library
 from .association.genetic_correlation import generate_pas_summary_stats, run_ldsc_rg
+from .ld.setup import setup_ld_reference, SUPPORTED_ANCESTRIES
 
 __all__ = [
     'ld_prune',
@@ -38,4 +39,6 @@ __all__ = [
     'generate_pas_summary_stats',
     'run_ldsc_rg',
     'configure_logging',
+    'setup_ld_reference',
+    'SUPPORTED_ANCESTRIES',
 ]
