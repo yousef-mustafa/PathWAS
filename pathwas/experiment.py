@@ -1130,7 +1130,7 @@ def validate_config(config: Dict[str, Any]) -> List[str]:
 
     modeling = config.get("modeling", {})
     model_type = modeling.get("model_type", "").lower()
-    valid_models = ["ridge", "bayes_mixture", "elastic_net", "lasso"]
+    valid_models = ["ridge", "bayes_mixture"]
     if model_type and model_type not in valid_models:
         errors.append(f"Invalid model type: {model_type}. Valid options: {valid_models}")
 

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from pathwas.pathway_test import test_pathway_twas
+from pathwas.association.pathway_test import test_pathway_twas
 
 
 def test_basic_twas():

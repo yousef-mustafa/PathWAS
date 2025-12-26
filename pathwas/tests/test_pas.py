@@ -22,7 +22,7 @@ def test_compute_pas_activity_weighted():
     assert pas.loc['s2', 'pw1'] == 3.0
     assert pas.loc['s3', 'pw1'] == 4.5
 
-from pathwas.data_prep import convert_gene_ids
+from pathwas.io.data_prep import convert_gene_ids
 
 
 class DummyMG:

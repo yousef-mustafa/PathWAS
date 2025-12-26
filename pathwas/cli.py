@@ -1,10 +1,10 @@
 ## ------------------------------------------------------------------------------------------- ##
-## PathWAS Command Line Interface                                                             ##
+## PathWAS Command Line Interface                                                              ##
 ## ------------------------------------------------------------------------------------------- ##
-## @script: cli.py                                                                            ##
+## @script: cli.py                                                                             ##
 ##                                                                                             ##
-## @description: Unified command-line interface for PathWAS experiments. Supports config      ##
-##               files, direct CLI arguments, and hybrid mode with overrides.                 ##
+## @description: Unified command-line interface for PathWAS experiments. Supports config       ##
+##               files, direct CLI arguments, and hybrid mode with overrides.                  ##
 ##                                                                                             ##
 ## @author: Yousef Mustafa, Lab of Dr. William Bush.                                           ##
 ## ------------------------------------------------------------------------------------------- ##
@@ -152,7 +152,7 @@ For more information, see: https://github.com/yousef-mustafa/pathWAS
     model_group.add_argument(
         "--model", "-m",
         type=str,
-        choices=["ridge", "bayes_mixture", "elastic_net", "lasso"],
+        choices=["ridge", "bayes_mixture"],
         default="ridge",
         help="Modeling method for SNP-to-PAS (default: ridge)",
     )
@@ -161,7 +161,7 @@ For more information, see: https://github.com/yousef-mustafa/pathWAS
         type=float,
         dest="lambda_param",
         metavar="VALUE",
-        help="Regularization parameter lambda (for ridge/lasso/elastic_net)",
+        help="Regularization parameter lambda (for ridge model)",
     )
     model_group.add_argument(
         "--mixture-components",
@@ -336,7 +336,7 @@ For more information, see: https://github.com/yousef-mustafa/pathWAS
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.1.0",
+        version="%(prog)s 0.2.0",
     )
 
     return parser
