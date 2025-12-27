@@ -1,39 +1,38 @@
 ## ------------------------------------------------------------------------------------------- ##
-## LD Subpackage Initialization                                                               ##
+## LD Reference Module                                                                        ##
 ## ------------------------------------------------------------------------------------------- ##
 ## @script: __init__.py                                                                       ##
-##                                                                                            ##
-## @description: Exposes LD reference panel utilities for loading external LD resources.     ##
-##                                                                                            ##
-## @author: Yousef Mustafa, Lab of Dr. William Bush.                                         ##
+##                                                                                             ##
+## @description: Exposes LD reference setup and management functionality for PathWAS.         ##
+##               Enables downloading and configuring LD panels from 1000 Genomes data.        ##
+##                                                                                             ##
+## @author: Yousef Mustafa, Lab of Dr. William Bush.                                           ##
 ## ------------------------------------------------------------------------------------------- ##
 
-"""LD reference panel support for external panels like 1000 Genomes."""
+"""LD Reference Module.
 
-from .reference import (
-    SNPInfo,
-    LDBlock,
-    LDReference,
-    load_snp_manifest,
-    load_block_definitions,
-    assign_snps_to_blocks,
-    load_ld_reference,
-    load_block_ld_matrix,
-    load_ld_for_snps,
-    align_ld_to_vectors,
-    save_block_ld,
+Provides functionality for downloading and managing LD (linkage disequilibrium)
+reference panels from 1000 Genomes data.
+"""
+
+from pathwas.ld.setup import (
+    SUPPORTED_ANCESTRIES,
+    compute_ld_matrix,
+    compute_maf,
+    download_ld_blocks,
+    download_plink_files,
+    list_ancestries,
+    read_plink_genotypes,
+    setup_ld_reference,
 )
 
 __all__ = [
-    "SNPInfo",
-    "LDBlock",
-    "LDReference",
-    "load_snp_manifest",
-    "load_block_definitions",
-    "assign_snps_to_blocks",
-    "load_ld_reference",
-    "load_block_ld_matrix",
-    "load_ld_for_snps",
-    "align_ld_to_vectors",
-    "save_block_ld",
+    "SUPPORTED_ANCESTRIES",
+    "setup_ld_reference",
+    "download_plink_files",
+    "download_ld_blocks",
+    "read_plink_genotypes",
+    "compute_ld_matrix",
+    "compute_maf",
+    "list_ancestries",
 ]

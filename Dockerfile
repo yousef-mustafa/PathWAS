@@ -1,89 +1,72 @@
-# PathWAS Dockerfile
-# Build: docker build -t pathwas:latest .
-# Run:   docker run --rm -v $(pwd):/project pathwas:latest --config /project/configs/myconfig.yaml
+# =============================================================================== #
+# PathWAS Dockerfile                                                              #
+# =============================================================================== #
+# Provides a containerized environment for running PathWAS analyses with all     #
+# dependencies pre-installed, including support for LD reference panel setup.    #
+# =============================================================================== #
 
-# Use Python 3.11 slim image as base
-FROM python:3.11-slim AS builder
+FROM python:3.10-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PATHWAS_LD_ROOT=/data/ld_reference
 
-# Install system dependencies required for building Python packages
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gcc \
-    g++ \
-    gfortran \
-    libopenblas-dev \
-    liblapack-dev \
-    pkg-config \
-    zlib1g-dev \
-    libffi-dev \
+    wget \
+    curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and set working directory
-WORKDIR /build
-
-# Copy requirements first for better caching
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
-
-# Copy the package source
-COPY setup.py .
-COPY README.md .
-COPY LICENSE .
-COPY pathwas/ pathwas/
-
-# Install PathWAS
-RUN pip install .
-
-
-# Production image
-FROM python:3.11-slim AS runtime
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Install runtime system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libopenblas0 \
-    libgomp1 \
-    git \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
 # Create non-root user for security
-RUN useradd --create-home --shell /bin/bash pathwas
+RUN groupadd --gid 1000 pathwas \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash pathwas
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin/pathwas /usr/local/bin/pathwas
+# Create directories
+RUN mkdir -p /app /data/ld_reference \
+    && chown -R pathwas:pathwas /app /data
 
 # Set working directory
-WORKDIR /project
+WORKDIR /app
 
-# Change ownership of project directory
-RUN chown -R pathwas:pathwas /project
+# Copy requirements first for caching
+COPY --chown=pathwas:pathwas requirements.txt .
+
+# Install Python dependencies
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
+
+# Copy application code
+COPY --chown=pathwas:pathwas . .
+
+# Install pathwas package
+RUN pip install -e .
 
 # Switch to non-root user
 USER pathwas
 
-# Set the entrypoint to the pathwas CLI
+# Default command
 ENTRYPOINT ["pathwas"]
-
-# Default command shows help
 CMD ["--help"]
 
-# Labels for container metadata
-LABEL org.opencontainers.image.title="PathWAS" \
-      org.opencontainers.image.description="Pathway-Wide Association Studies Analysis Framework" \
-      org.opencontainers.image.version="0.2.0" \
-      org.opencontainers.image.source="https://github.com/yousef-mustafa/PathWAS" \
-      org.opencontainers.image.licenses="MIT"
+# =============================================================================== #
+# Usage Examples:
+# ---------------
+# Build the image:
+#   docker build -t pathwas .
+#
+# Run LD reference setup:
+#   docker run -v $(pwd)/ld_reference:/data/ld_reference pathwas setup-ld \
+#       --ancestry EUR --chromosomes 22
+#
+# Run PAS computation:
+#   docker run -v $(pwd)/data:/data pathwas pas /data/expression.csv \
+#       --msigdb KEGG_2021_Human --out /data/pas.csv
+#
+# Interactive shell:
+#   docker run -it --entrypoint /bin/bash pathwas
+# =============================================================================== #
