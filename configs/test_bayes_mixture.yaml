@@ -1,0 +1,44 @@
+# PathWAS Configuration: Bayesian Mixture Model
+# ==============================================
+# Tests Bayesian mixture model for sparse genetic effects
+# Uses spike-and-slab prior with configurable tau grid
+
+experiment:
+  name: test_bayes_mixture
+  description: "Test Bayesian mixture model for sparse effects"
+  overwrite: true
+
+data:
+  expression: data/raw/expression.csv
+  genotypes: data/raw/genotypes.csv
+
+pathways:
+  source: custom
+  file: data/raw/pathways.json
+
+preprocessing:
+  normalization: cpm
+  log_transform: true
+  zscore_genes: true
+
+modeling:
+  model_type: bayes_mixture
+  model_params:
+    tau_grid:
+      - 0.0
+      - 0.001
+      - 0.01
+      - 0.1
+      - 1.0
+    max_iter: 100
+    tol: 0.0001
+
+pas_analysis:
+  enabled: false
+
+visualization:
+  enabled: false
+
+output:
+  base_dir: data/processed/experiments
+  save_intermediate: true

@@ -1,0 +1,51 @@
+# PathWAS Configuration: Full Pipeline with Genotypes
+# =====================================================
+# Tests full pipeline including PAS computation, differential analysis,
+# and genotype association modeling using Ridge regression
+
+experiment:
+  name: test_full_pipeline
+  description: "Full pipeline test with genotype association"
+  overwrite: true
+
+data:
+  expression: data/raw/expression.csv
+  genotypes: data/raw/genotypes.csv
+  group_labels: data/raw/sample_metadata.csv
+
+pathways:
+  source: custom
+  file: data/raw/pathways.json
+
+preprocessing:
+  normalization: cpm
+  log_transform: true
+  zscore_genes: true
+
+modeling:
+  model_type: ridge
+  model_params:
+    lambda: 0.1
+
+pas_analysis:
+  enabled: true
+  test_method: ttest
+  alpha: 0.05
+  correction: fdr_bh
+  group_column: group
+
+visualization:
+  enabled: true
+  heatmap:
+    enabled: true
+    cluster_rows: true
+    cluster_cols: true
+  boxplot:
+    enabled: true
+    top_n: 10
+  volcano:
+    enabled: true
+
+output:
+  base_dir: data/processed/experiments
+  save_intermediate: true

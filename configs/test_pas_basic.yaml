@@ -1,0 +1,32 @@
+# PathWAS Configuration: Basic PAS Computation
+# ==============================================
+# Tests basic PAS computation using mean expression method
+# No statistical testing or modeling, just PAS computation
+
+experiment:
+  name: test_pas_basic
+  description: "Test basic PAS computation with mean method"
+  overwrite: true
+
+data:
+  expression: data/raw/expression.csv
+  group_labels: data/raw/sample_metadata.csv
+
+pathways:
+  source: custom
+  file: data/raw/pathways.json
+
+preprocessing:
+  normalization: cpm
+  log_transform: true
+  zscore_genes: false
+
+pas_analysis:
+  enabled: false
+
+visualization:
+  enabled: false
+
+output:
+  base_dir: data/processed/experiments
+  save_intermediate: true

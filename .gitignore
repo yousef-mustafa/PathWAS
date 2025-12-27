@@ -48,3 +48,14 @@ htmlcov/
 
 # Model files and data artifacts
 *.pkl*
+
+# Generated data directories
+data/raw/
+data/processed/
+
+# Logs directory
+logs/
+
+# Results and reports
+results/
+reports/

@@ -1,0 +1,48 @@
+# PathWAS Configuration: Activity-Weighted PAS with Differential Analysis
+# ========================================================================
+# Tests activity-weighted PAS computation and differential analysis
+# Includes visualization outputs
+
+experiment:
+  name: test_pas_differential
+  description: "Test activity-weighted PAS with differential analysis"
+  overwrite: true
+
+data:
+  expression: data/raw/expression.csv
+  group_labels: data/raw/sample_metadata.csv
+
+pathways:
+  source: custom
+  file: data/raw/pathways.json
+
+preprocessing:
+  normalization: cpm
+  log_transform: true
+  zscore_genes: true
+
+pas_analysis:
+  enabled: true
+  test_method: welch
+  alpha: 0.05
+  correction: fdr_bh
+  group_column: group
+
+visualization:
+  enabled: true
+  heatmap:
+    enabled: true
+    cluster_rows: true
+    cluster_cols: true
+    top_n_pathways: 50
+  boxplot:
+    enabled: true
+    top_n: 10
+  volcano:
+    enabled: true
+    pvalue_threshold: 0.05
+    effect_size_threshold: 0.5
+
+output:
+  base_dir: data/processed/experiments
+  save_intermediate: true

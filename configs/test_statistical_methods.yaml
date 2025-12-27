@@ -1,0 +1,65 @@
+# PathWAS Configuration: Multiple Statistical Methods
+# ====================================================
+# Tests multiple statistical methods for PAS differential analysis
+# Useful for comparing sensitivity and specificity of different tests
+
+experiment:
+  name: test_statistical_methods
+  description: "Compare multiple statistical test methods"
+  overwrite: true
+
+data:
+  expression: data/raw/expression.csv
+  group_labels: data/raw/sample_metadata.csv
+
+pathways:
+  source: custom
+  file: data/raw/pathways.json
+
+preprocessing:
+  normalization: cpm
+  log_transform: true
+  zscore_genes: true
+
+# Run multiple test methods for comparison
+pas_analysis:
+  enabled: true
+  # Primary test method
+  test_method: ttest
+  alpha: 0.05
+  correction: fdr_bh
+  group_column: group
+  # Additional comparisons (custom extension)
+  compare_methods:
+    - ttest
+    - welch
+    - mann_whitney
+
+visualization:
+  enabled: true
+  heatmap:
+    enabled: true
+    cluster_rows: true
+    cluster_cols: true
+  boxplot:
+    enabled: true
+    top_n: 15
+  volcano:
+    enabled: true
+
+output:
+  base_dir: data/processed/experiments
+  save_intermediate: true
+
+# Additional method-specific configurations
+method_configs:
+  ttest:
+    description: "Student's t-test (equal variance assumed)"
+  welch:
+    description: "Welch's t-test (unequal variance)"
+  mann_whitney:
+    description: "Mann-Whitney U test (non-parametric)"
+  anova:
+    description: "One-way ANOVA (for 3+ groups)"
+  kruskal:
+    description: "Kruskal-Wallis test (non-parametric ANOVA)"
