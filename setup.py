@@ -20,6 +20,7 @@ setup(
         'gseapy>=1.0.0,<2.0.0',
         'pyyaml>=6.0,<7.0',
         'markdown>=3.4.0,<4.0.0',
+        'tqdm>=4.60.0,<5.0.0',
     ],
     extras_require={
         'robust': ['astropy>=5.0,<7.0'],

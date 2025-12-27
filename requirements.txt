@@ -21,6 +21,9 @@ markdown==3.5.2
 matplotlib==3.8.2
 seaborn==0.13.2
 
+# Progress bars
+tqdm==4.66.1
+
 # Optional but recommended for robust correlation methods
 astropy==6.0.0
 

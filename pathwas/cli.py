@@ -12,6 +12,8 @@
 import argparse
 import json
 import logging
+import os
+import sys
 
 import pandas as pd
 
@@ -32,6 +34,27 @@ from .ld.setup import (
     list_ancestries,
     setup_ld_reference,
 )
+
+
+def validate_file_exists(path: str, description: str) -> None:
+    """Validate that a file exists, raise helpful error if not.
+
+    Parameters
+    ----------
+    path : str
+        Path to the file to validate.
+    description : str
+        Human-readable description of the file for error messages.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the file does not exist.
+    """
+    if not os.path.exists(path):
+        print(f"Error: {description} not found: {path}", file=sys.stderr)
+        print("Please check the path and try again.", file=sys.stderr)
+        sys.exit(1)
 
 
 def main():
@@ -106,17 +129,20 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'ld-prune':
+        validate_file_exists(args.vcf, "VCF file")
         logging.info("Running LD pruning on %s", args.vcf)
         pruned_vcf = ld_prune(args.vcf, plink_path=args.plink, out_dir=args.out)
         logging.info("Pruned VCF written to %s", pruned_vcf)
         print(pruned_vcf)
     elif args.command == 'cov':
+        validate_file_exists(args.vcf, "VCF file")
         logging.info("Computing covariance from %s", args.vcf)
         gt = load_vcf_as_matrix(args.vcf)
         cov = compute_covariance(gt)
         cov.to_csv(args.out)
         logging.info("Covariance matrix written to %s", args.out)
     elif args.command == 'pas':
+        validate_file_exists(args.expression, "Expression file")
         logging.info("Computing PAS using %s", args.expression)
         expr = pd.read_csv(args.expression, index_col=0)
         expr = convert_gene_ids(expr)
@@ -128,6 +154,7 @@ def main():
         else:
             if not args.pathways:
                 parser.error("Either --msigdb or --pathways is required")
+            validate_file_exists(args.pathways, "Pathways file")
             with open(args.pathways) as fh:
                 pathways = json.load(fh)
             pathways = {pw: convert_gene_list(gs) for pw, gs in pathways.items()}
@@ -143,6 +170,9 @@ def main():
         pas.to_csv(args.out)
         logging.info("PAS written to %s", args.out)
     elif args.command == 'test':
+        validate_file_exists(args.pas, "PAS file")
+        validate_file_exists(args.genotypes, "Genotypes file")
+        validate_file_exists(args.pathways, "Pathways file")
         logging.info("Running association test")
         pas = pd.read_csv(args.pas, index_col=0)
         genotypes = pd.read_csv(args.genotypes, index_col=0)

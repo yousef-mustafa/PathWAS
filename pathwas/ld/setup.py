@@ -23,6 +23,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 # Constants
 SUPPORTED_ANCESTRIES: Dict[str, str] = {
@@ -130,7 +131,7 @@ def setup_ld_reference(
     # Step 2: Download genotype files
     print("[Step 2/4] Downloading genotype files...")
     plink_prefixes = {}
-    for chrom in chromosomes:
+    for chrom in tqdm(chromosomes, desc="Downloading chromosomes"):
         prefix = download_plink_files(ancestry, chrom, downloads_dir)
         if prefix is not None:
             plink_prefixes[chrom] = prefix
@@ -149,8 +150,7 @@ def setup_ld_reference(
     all_snps = []
     block_id = 0
 
-    for chrom in sorted(plink_prefixes.keys()):
-        print(f"Processing chromosome {chrom}...")
+    for chrom in tqdm(sorted(plink_prefixes.keys()), desc="Processing chromosomes"):
         prefix = plink_prefixes[chrom]
 
         try:
@@ -462,7 +462,7 @@ def read_plink_genotypes(
 
 def _read_bed_file(bed_file: Path, n_samples: int, n_snps: int) -> np.ndarray:
     """
-    Read PLINK .bed binary file.
+    Read PLINK .bed binary file using vectorized operations.
 
     PLINK .bed format (SNP-major mode):
     - 3-byte magic number: 0x6c 0x1b 0x01
@@ -497,29 +497,32 @@ def _read_bed_file(bed_file: Path, n_samples: int, n_snps: int) -> np.ndarray:
     # Reshape to (n_snps, bytes_per_snp)
     raw = raw.reshape((n_snps, bytes_per_snp))
 
-    # Decode 2-bit genotypes
-    # Mapping: 00=0 (hom ref), 01=NaN (missing), 10=1 (het), 11=2 (hom alt)
-    genotypes = np.zeros((n_samples, n_snps), dtype=np.float32)
+    # Vectorized decoding of 2-bit genotypes
+    # Expand each byte into 4 genotype codes
+    genotypes = np.zeros((n_snps, n_samples), dtype=np.float32)
 
-    for snp_idx in range(n_snps):
-        sample_idx = 0
-        for byte_idx in range(bytes_per_snp):
-            byte = raw[snp_idx, byte_idx]
-            for bit_pair in range(4):
-                if sample_idx >= n_samples:
-                    break
-                code = (byte >> (bit_pair * 2)) & 0x03
-                if code == 0:
-                    genotypes[sample_idx, snp_idx] = 0.0
-                elif code == 1:
-                    genotypes[sample_idx, snp_idx] = np.nan
-                elif code == 2:
-                    genotypes[sample_idx, snp_idx] = 1.0
-                else:  # code == 3
-                    genotypes[sample_idx, snp_idx] = 2.0
-                sample_idx += 1
+    for bit_pos in range(4):
+        # Extract 2-bit codes for this position across all bytes
+        codes = (raw >> (bit_pos * 2)) & 0x03
 
-    return genotypes
+        # Calculate sample indices for this bit position
+        sample_indices = np.arange(bytes_per_snp) * 4 + bit_pos
+        valid_mask = sample_indices < n_samples
+
+        if not valid_mask.any():
+            continue
+
+        valid_indices = sample_indices[valid_mask]
+        valid_codes = codes[:, valid_mask]
+
+        # Map codes: 0->0 (hom ref), 1->NaN (missing), 2->1 (het), 3->2 (hom alt)
+        genotypes[:, valid_indices] = np.where(
+            valid_codes == 0, 0.0,
+            np.where(valid_codes == 2, 1.0,
+            np.where(valid_codes == 3, 2.0, np.nan))
+        )
+
+    return genotypes.T  # Return (n_samples, n_snps)
 
 
 def compute_ld_matrix(genotypes: np.ndarray) -> np.ndarray:

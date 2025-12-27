@@ -17,6 +17,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 from scipy import linalg
+from tqdm import tqdm
 
 from .base import ModelConfig, PathwayModel
 
@@ -110,7 +111,7 @@ class RidgePathwayModel(PathwayModel):
             use_cholesky = False
 
         # Step 4: For each pathway, solve and compute coefficients
-        for pathway in self._pathways:
+        for pathway in tqdm(self._pathways, desc="Fitting pathways"):
             r_p = residual_pas[pathway].values.astype(np.float64)
 
             # Solve (K + lambda*I) * alpha = r
