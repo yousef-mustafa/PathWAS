@@ -55,6 +55,12 @@ from .pas.pas_viz import (
     create_pas_report_figures,
 )
 from .association.pathway_test import aggregate_variants, association_test
+from .reporting import (
+    StageTimer,
+    DataSnapshot,
+    snapshot_dataframe,
+    generate_experiment_report,
+)
 
 
 # ----------------------------- Constants ------------------------------------ #
@@ -785,7 +791,11 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
     # Merge with defaults
     full_config = merge_config(DEFAULT_CONFIG.copy(), config)
 
+    timer = StageTimer()
+    snapshots: List[DataSnapshot] = []
+
     # Setup experiment directory
+    timer.start("setup")
     base_dir = full_config.get("output", {}).get("base_dir", DEFAULT_EXPERIMENTS_DIR)
     exp_dir = setup_experiment_dir(full_config, base_dir)
 
@@ -796,6 +806,7 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Save metadata
     metadata = save_metadata(full_config, exp_dir)
+    timer.stop("setup")
 
     # Initialize results dictionary
     results: Dict[str, Any] = {
@@ -809,9 +820,14 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
         # Load and preprocess expression data
         expr_path = full_config.get("data", {}).get("expression")
         if expr_path and os.path.exists(expr_path):
+            timer.start("load_expression")
             logging.info("Loading expression data from %s", expr_path)
             expr_df = pd.read_csv(expr_path, index_col=0)
+            snapshots.append(snapshot_dataframe(expr_df, "Raw Expression Matrix", file_path=str(expr_path)))
             expr_df = convert_gene_ids(expr_df)
+            timer.stop("load_expression")
+
+            timer.start("preprocess_expression")
             expr_df = preprocess_expression(expr_df, full_config)
 
             # Save preprocessed expression
@@ -819,11 +835,16 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
                 preprocessed_path = exp_dir / "expression_preprocessed.csv"
                 expr_df.to_csv(preprocessed_path)
                 logging.info("Saved preprocessed expression to %s", preprocessed_path)
+            snapshots.append(snapshot_dataframe(expr_df, "Preprocessed Expression", file_path=str(exp_dir / "expression_preprocessed.csv")))
+            timer.stop("preprocess_expression")
 
             # Load pathways
+            timer.start("load_pathways")
             pathways = load_pathways(full_config)
+            timer.stop("load_pathways")
 
             # Compute PAS
+            timer.start("compute_pas")
             logging.info("Computing pathway activation scores")
             pas_df, weights = compute_pas(
                 expr_df,
@@ -838,6 +859,8 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
             pas_path = exp_dir / "pas_matrix.csv"
             pas_df.to_csv(pas_path)
             logging.info("Saved PAS matrix to %s", pas_path)
+            snapshots.append(snapshot_dataframe(pas_df, "PAS Matrix", file_path=str(pas_path)))
+            timer.stop("compute_pas")
 
             # Save weights if available
             if weights:
@@ -873,6 +896,7 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
             if group_labels_path and os.path.exists(group_labels_path):
                 logging.info("Loading group labels from %s", group_labels_path)
                 group_df = pd.read_csv(group_labels_path, index_col=0)
+                snapshots.append(snapshot_dataframe(group_df, "Group Labels", file_path=str(group_labels_path)))
                 group_col = pas_analysis_config.get("group_column", "group")
 
                 if group_col in group_df.columns:
@@ -884,6 +908,7 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
 
             if group_labels is not None and pas_analysis_config.get("enabled", False):
                 logging.info("Running PAS differential analysis")
+                timer.start("differential_analysis")
 
                 # Build test configuration
                 test_method_map = {
@@ -934,6 +959,7 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
                     diff_path = exp_dir / "pas_differential_results.csv"
                     diff_results.to_csv(diff_path, index=False)
                     logging.info("Saved PAS differential results to %s", diff_path)
+                    snapshots.append(snapshot_dataframe(diff_results, "Differential Analysis Results", file_path=str(diff_path)))
 
                     # Update results
                     n_sig = diff_results["significant"].sum() if "significant" in diff_results.columns else 0
@@ -956,6 +982,8 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
                 except Exception as e:
                     logging.error("PAS differential analysis failed: %s", e)
                     results["pas_analysis"] = {"error": str(e)}
+                finally:
+                    timer.stop("differential_analysis")
 
             # Visualization
             viz_config = full_config.get("visualization", {})
@@ -963,7 +991,7 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
                 logging.info("Generating visualizations")
                 figures_dir = exp_dir / "figures"
                 figures_dir.mkdir(exist_ok=True)
-
+                timer.start("visualization")
                 try:
                     # Heatmap
                     heatmap_config = viz_config.get("heatmap", {})
@@ -1045,14 +1073,18 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
                     logging.warning("Visualization dependencies not available: %s", e)
                 except Exception as e:
                     logging.error("Visualization failed: %s", e)
+                finally:
+                    timer.stop("visualization")
 
             # Genotype-based association (if genotypes provided)
             geno_path = full_config.get("data", {}).get("genotypes")
             if geno_path and os.path.exists(geno_path):
                 logging.info("Loading genotype data from %s", geno_path)
+                timer.start("association_testing")
                 # For now, support CSV format; PLINK/VCF would need specific loaders
                 if geno_path.endswith(".csv"):
                     geno_df = pd.read_csv(geno_path, index_col=0)
+                    snapshots.append(snapshot_dataframe(geno_df, "Genotype Matrix", file_path=str(geno_path)))
 
                     # Run association test
                     logging.info("Running association test")
@@ -1068,12 +1100,14 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
                     if not assoc_results.empty and "pathway" in assoc_results.columns:
                         top_assoc = assoc_results.head(10).to_dict("records")
                         results["association"]["top_pathways"] = top_assoc
+                        snapshots.append(snapshot_dataframe(assoc_results, "Association Results", file_path=str(assoc_path)))
                 else:
                     logging.warning(
                         "Genotype file format not directly supported: %s. "
                         "Use PLINK tools to convert to CSV first.",
                         geno_path,
                     )
+                timer.stop("association_testing")
 
         else:
             logging.warning("Expression data not provided or not found")
@@ -1089,11 +1123,25 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
         raise
 
     finally:
-        # Generate report even if experiment partially failed
+        results["metadata"] = metadata
+
+        timer.start("report_generation")
         try:
-            generate_markdown_report(full_config, results, exp_dir)
+            generate_experiment_report(
+                full_config,
+                results,
+                exp_dir,
+                timer=timer,
+                snapshots=snapshots,
+            )
         except Exception as e:
             logging.error("Failed to generate report: %s", e)
+            try:
+                generate_markdown_report(full_config, results, exp_dir)
+            except Exception:
+                pass
+        finally:
+            timer.stop("report_generation")
 
     logging.info("Experiment completed: %s", exp_dir)
     return {
